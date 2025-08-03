@@ -13,4 +13,5 @@ public class ProductDTO {
 	private BigDecimal price; // Use BigDecimal
 	private Integer quantity;
 	private Integer rate;
+
 }

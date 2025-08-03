@@ -1,12 +1,12 @@
 package com.example.E_commerceApplication.security;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -22,37 +22,51 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	@Autowired
 	private JwtUtil jwtUtil;
 
-	@Autowired
-	private UserDetailsService userDetailsService;
-
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws ServletException, IOException {
-		// TODO Auto-generated method stub
+
 		final String authHeader = request.getHeader("Authorization");
 
-		String jwt = null;
-		String username = null;
-
-		if (authHeader != null && authHeader.startsWith("Bearer ")) {
-			jwt = authHeader.substring(7);
-			username = jwtUtil.extractUsername(jwt);
+		// 🛡️ Step 1: Check for missing or invalid Authorization header
+		if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+			filterChain.doFilter(request, response);
+			return;
 		}
 
-		if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-			UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-			if (jwtUtil.validateToken(username, userDetails)) {
-				UsernamePasswordAuthenticationToken authToken =
-				new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+		// 🛡️ Step 2: Extract the JWT token
+		final String jwt = authHeader.substring(7); // Skip "Bearer "
 
-				authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+		try {
+			// 🛡️ Step 3: Extract username from JWT
+			final String username = jwtUtil.extractUsername(jwt);
 
-				SecurityContextHolder.getContext().setAuthentication(authToken);
+			// 🛡️ Step 4: Only authenticate if user not already authenticated
+			if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+
+				// 🛡️ Step 5: Check token validity
+				if (!jwtUtil.isTokenExpired(jwt)) {
+
+					// 🛡️ Step 6: Extract user roles/authorities
+					List<SimpleGrantedAuthority> authorities = jwtUtil.extractAuthorities(jwt);
+
+					// 🛡️ Step 7: Create auth token and set context
+					UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(username,
+							null, authorities);
+
+					authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+					// 🛡️ Step 8: Set authenticated user into Spring Security context
+					SecurityContextHolder.getContext().setAuthentication(authToken);
+				}
 			}
+
+		} catch (Exception e) {
+			System.out.println("Invalid JWT: " + e.getMessage());
+			// Optionally log or send error response here
 		}
 
+		// 🔄 Always continue the filter chain
 		filterChain.doFilter(request, response);
-
 	}
-
 }

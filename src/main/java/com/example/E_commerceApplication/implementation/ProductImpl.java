@@ -7,6 +7,9 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.example.E_commerceApplication.Data.Product;
@@ -26,6 +29,10 @@ public class ProductImpl implements ProductService {
 	@Autowired
 	private ProductMapper productMapper;
 
+	@Autowired
+	private CacheInspectionService cacheInspectionService;
+
+	@CachePut(value = "products", key = "#result.id")
 	@Override
 	public ProductDTO create(ProductDTO productDTO) {
 		Product entity = ProductMapper.toEntity(productDTO);
@@ -33,24 +40,11 @@ public class ProductImpl implements ProductService {
 		return ProductMapper.toDTO(save);
 	}
 
-
+	@CachePut(value = "products", key = "#id") // pulls 'id' from method param
 	@Override
-	public List<ProductDTO> findAll() {
-		List<Product> products = crudRepository.findAll();
-		return products.stream().map(ProductMapper::toDTO).collect(Collectors.toList());
-	}
-
-
-	@Override
-	public Optional<ProductDTO> findbyID(Long id) {
-		Optional<Product> productOpt = crudRepository.findById(id);
-		return productOpt.map(ProductMapper::toDTO);
-	}
-
-	@Override
-	public ProductDTO update(ProductDTO update) {
+	public ProductDTO update(Long id, ProductDTO update) {
 		Optional<Product> updateProduct = crudRepository.findById(update.getId());
-		if (updateProduct.isEmpty()) {
+		if (updateProduct.isPresent()) {
 			Product product = updateProduct.get();
 
 			product.setCategory(update.getCategory());
@@ -66,6 +60,21 @@ public class ProductImpl implements ProductService {
 		}
 	}
 
+	@Cacheable(value = "products", key = "'all'") // read all (with fix key)
+	@Override
+	public List<ProductDTO> findAll() {
+		logger.info("Fetching all products from DB");
+		return crudRepository.findAll().stream().map(ProductMapper::toDTO).collect(Collectors.toList());
+	}
+
+	@Cacheable(value = "products", key = "#id")
+	@Override
+	public Optional<ProductDTO> findbyID(Long id) {
+		System.out.println("Fetching data from Product: " + id);
+		return crudRepository.findById(id).map(ProductMapper::toDTO);
+	}
+
+	@CacheEvict(value = "products", key = "#id")
 	@Override
 	public void delete(Long id) {
 		if (!crudRepository.existsById(id)) {
@@ -74,6 +83,11 @@ public class ProductImpl implements ProductService {
 		}
 		logger.info("Deleting product with ID: {}", id);
 		crudRepository.deleteById(id);
+	}
+
+	@CacheEvict(value = "products", allEntries = true)
+	public void cleanAllProductCache() {
+		logger.warn("ALL product cache entries cleared.");
 	}
 
 }

@@ -24,7 +24,6 @@ public class WishlistController {
 
 	private final WishListItemService wishlist;
 
-	// POST /wishlist?id=1&userId=2
 	@PostMapping("/getItem")
 	public WishListItem getItem(@RequestBody WishListItem wishListItem) {
 		return wishlist.addWishListItem(wishListItem);

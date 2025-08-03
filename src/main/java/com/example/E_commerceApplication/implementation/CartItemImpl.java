@@ -36,7 +36,7 @@ public class CartItemImpl implements CartItemService {
 
 	@Override
 	public void cleanUserCart(Long userId) {
-		List<CartItem> items = cartItemRepository.findByUserIdAndRemovedFalse(userId);
+		List<CartItem> items = cartItemRepository.findByUser_IdAndRemovedFalse(userId);
 		for (CartItem item : items) {
 			item.setRemoved(true);
 		}

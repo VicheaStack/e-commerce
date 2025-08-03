@@ -12,7 +12,7 @@ public interface ProductService {
 
 	Optional<ProductDTO> findbyID(Long id);
 
-	ProductDTO update(ProductDTO update);
+	ProductDTO update(Long id, ProductDTO update);
 
 	void delete(Long id);
 

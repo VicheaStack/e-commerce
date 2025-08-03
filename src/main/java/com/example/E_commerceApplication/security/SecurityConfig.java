@@ -9,11 +9,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -24,9 +21,20 @@ import com.example.E_commerceApplication.implementation.CustomUserDetailsService
 @EnableMethodSecurity
 public class SecurityConfig {
 
-	private UserDetailsService userDetailsService;
-	private CustomUserDetailsService customUserDetailsService;
-	private JwtAuthenticationFilter jwtAuthenticationFilter;
+	private final CustomUserDetailsService customUserDetailsService;
+	private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+	public SecurityConfig(CustomUserDetailsService customUserDetailsService,
+			JwtAuthenticationFilter jwtAuthenticationFilter) {
+		this.customUserDetailsService = customUserDetailsService;
+		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+	}
+
+	// 🔐 Password encoder for hashing user passwords
+	@Bean
+	public PasswordEncoder passwordEncoder() {
+		return new BCryptPasswordEncoder();
+	}
 
 	@Bean
 	public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
@@ -34,18 +42,20 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public UserDetailsService userDetailsService() {
-
-		UserDetails user = User.withUsername("admin").password("{noop}admin@123").build();
-		return new InMemoryUserDetailsManager();
-	}
-
-	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		return http.csrf(csrf -> csrf.disable())
 				.authorizeHttpRequests(
-						auth -> auth.requestMatchers("/products/**").hasRole("ADMIN").anyRequest().authenticated())
-				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+						auth -> auth
+								.requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/register-admin",
+										"/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**",
+										"/swagger-resources/**", "/webjars/**")
+								.permitAll()
+								.requestMatchers("/product/request/**", "/product/request/create",
+										"/product/request/getall", "/product/request/delete")
+								.hasAuthority("ROLE_ADMIN")
+								.anyRequest().authenticated())
+				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // JWT =
+																												// Stateless
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class).build();
 	}
 
@@ -53,8 +63,7 @@ public class SecurityConfig {
 	public DaoAuthenticationProvider authenticationProvider() {
 		DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
 		provider.setUserDetailsService(customUserDetailsService);
-		provider.setPasswordEncoder(new BCryptPasswordEncoder());
-
+		provider.setPasswordEncoder(passwordEncoder());
 		return provider;
 	}
 }

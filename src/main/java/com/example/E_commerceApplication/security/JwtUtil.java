@@ -1,84 +1,66 @@
 package com.example.E_commerceApplication.security;
 
+import java.util.Base64;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.crypto.SecretKey;
 
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 
 @Component
 public class JwtUtil {
 
-	// 🔐 Symmetric secret key for signing the JWT
-	private final String SECRET_KEY = "your-256-bit-secret-your-256-bit-secret";
 
-	/**
-	 * Generate a signing key using the secret.
-	 */
-	public SecretKey getSigningKey() {
-		byte[] keyBytes = SECRET_KEY.getBytes(); // You can add UTF-8 charset for safety
-		return Keys.hmacShaKeyFor(keyBytes);
-	}
+	private final String SECRET_KEY = "Z2VuZXJhdGVhcmVhbGx5c2VjdXJlc3VwZXJzZWNyZXRrZXk=";
+	private final Long EXPIRATION = 1000L * 60 * 60; // 1 hour
+	private final SecretKey key = Keys.hmacShaKeyFor(Base64.getDecoder().decode(SECRET_KEY));
 
-	/**
-	 * Generate JWT Token for a given user.
-	 * 
-	 * @param userDetails authenticated user
-	 * @return signed JWT token string
-	 */
+	// ✅ Generate JWT token with username + roles
 	public String generateToken(UserDetails userDetails) {
-		return Jwts.builder().setSubject(userDetails.getUsername()) // 👤 username as subject
-				.setIssuedAt(new Date()) // 🕒 token issue time
-				.setExpiration(new Date(System.currentTimeMillis() + 86400000)) // ⏳ 1 day
-				.signWith(getSigningKey(), SignatureAlgorithm.HS256) // 🔐 sign the token
-				.compact();
+		List<String> roles = userDetails.getAuthorities().stream().map(authority -> authority.getAuthority())
+				.collect(Collectors.toList());
+
+		return Jwts.builder().subject(userDetails.getUsername()).claim("roles", roles).issuedAt(new Date())
+				.expiration(new Date(System.currentTimeMillis() + EXPIRATION)).signWith(key).compact();
 	}
 
-	/**
-	 * Parse JWT and get all claims.
-	 * 
-	 * @param token JWT token
-	 * @return Claims object
-	 */
-	private Claims getClaims(String token) {
-		return Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token).getBody();
-	}
-
-	/**
-	 * Extract username (subject) from the token.
-	 * 
-	 * @param token JWT token
-	 * @return username
-	 */
+	// ✅ Extract username from token
 	public String extractUsername(String token) {
-		return getClaims(token).getSubject();
+		return extractAllClaims(token).getSubject();
 	}
 
-	/**
-	 * Check if the token is expired.
-	 * 
-	 * @param token JWT token
-	 * @return true if expired
-	 */
-	private boolean isTokenExpired(String token) {
-		return getClaims(token).getExpiration().before(new Date());
+	// ✅ Validate token (username match + not expired)
+	public boolean validateToken(String token, String username) {
+		return extractUsername(token).equals(username) && !isTokenExpired(token);
 	}
 
-	/**
-	 * Validate token: correct username and not expired.
-	 * 
-	 * @param token       JWT token
-	 * @param userDetails user from Spring Security
-	 * @return true if valid
-	 */
-	public boolean validateToken(String token, UserDetails userDetails) {
-		final String username = extractUsername(token);
-		return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+	// ✅ Check if token is expired
+	public boolean isTokenExpired(String token) {
+		return extractAllClaims(token).getExpiration().before(new Date());
+	}
+
+	// ✅ Extract all claims (roles, subject, etc.)
+	public Claims extractAllClaims(String token) {
+		try {
+			JwtParser parser = Jwts.parser().verifyWith(key).build();
+			return parser.parseSignedClaims(token).getPayload();
+		} catch (Exception e) {
+			throw new RuntimeException("Invalid JWT token", e);
+		}
+	}
+
+	// ✅ Extract roles as authorities
+	public List<SimpleGrantedAuthority> extractAuthorities(String token) {
+		List<String> roles = extractAllClaims(token).get("roles", List.class);
+		return roles.stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList());
 	}
 }

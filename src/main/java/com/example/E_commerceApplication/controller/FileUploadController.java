@@ -17,7 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Controller
 public class FileUploadController {
 
-	private static final String UPLOAD_DIR = "uploads"; // Make sure this folder exists or create it
+	private static final String UPLOAD_DIR = "uploads";
 
 	@PostMapping("/upload")
 	public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
@@ -26,17 +26,14 @@ public class FileUploadController {
 		}
 
 		try {
-			// Ensure upload folder exists
 			Path uploadPath = Paths.get(UPLOAD_DIR);
 			if (!Files.exists(uploadPath)) {
 				Files.createDirectories(uploadPath);
 			}
 
-			// Clean filename and store
 			String fileName = StringUtils.cleanPath(file.getOriginalFilename());
 			Path filePath = uploadPath.resolve(fileName);
 
-			// Save the file
 			Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
 			return ResponseEntity.ok("File uploaded successfully: " + fileName);

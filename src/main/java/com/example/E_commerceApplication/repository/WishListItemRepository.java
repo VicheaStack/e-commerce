@@ -9,5 +9,5 @@ import com.example.E_commerceApplication.Data.WishListItem;
 
 @Repository
 public interface WishListItemRepository extends JpaRepository<WishListItem, Long> {
-	List<WishListItem> findByUserIdAndRemovedFalse(Long userId);
+	List<WishListItem> findByUserIdAndRemovedFalse(Long id);
 }

@@ -1,7 +1,7 @@
 package com.example.E_commerceApplication.Mapper;
 
 import com.example.E_commerceApplication.Data.CartItem;
-import com.example.E_commerceApplication.Data.User;
+import com.example.E_commerceApplication.Data.UserEntity;
 import com.example.E_commerceApplication.Dto.CartItemDTO;
 
 public class CartItemMapper {
@@ -32,7 +32,7 @@ public class CartItemMapper {
 		cartItem.setProductName(dto.getProductName());
 
 		if (dto.getUserId() != null) {
-			User user = new User();
+			UserEntity user = new UserEntity();
 			user.setId(dto.getUserId());
 			cartItem.setUser(user);
 		}

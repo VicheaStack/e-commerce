@@ -7,13 +7,15 @@ import org.springframework.stereotype.Repository;
 
 import com.example.E_commerceApplication.Data.CartItem;
 
-
 @Repository
 public interface CartItemRepository extends JpaRepository<CartItem, Long> {
+
+	// Find by product name
 	List<CartItem> findByProductName(String productName);
 
-	List<CartItem> findbyUserId(Long id);
+	// ✅ Corrected: Find by user's ID (through the user relationship)
+	List<CartItem> findByUser_Id(Long id);
 
-	List<CartItem> findByUserIdAndRemovedFalse(Long userId);
-
+	// ✅ Corrected: Find by user's ID and only non-removed items
+	List<CartItem> findByUser_IdAndRemovedFalse(Long id);
 }
